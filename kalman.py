@@ -14,9 +14,9 @@ class KalmanFilter:
             np.deg2rad(5.0)**2  # orientation known to within 0.5°
         ])
 
-        self.Q = np.diag([3.0, 3.0, np.deg2rad(20.0)**2])
+        self.Q = np.diag([3.0, 3.0, np.deg2rad(15.0)**2])
 
-        self.R = np.diag([100, 100, np.deg2rad(15.0)**2])  # Camera is jumpy
+        self.R = np.diag([100, 100, np.deg2rad(20.0)**2])  # Camera is jumpy
 
 
 
