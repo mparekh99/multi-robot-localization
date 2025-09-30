@@ -79,6 +79,7 @@ def setup(robot_serial: str):
     robot.behavior.set_head_angle(degrees(7.0))
     robot.behavior.set_lift_height(0.0)
     robot.camera.init_camera_feed()
+    # time.sleep(1.0)
 
     # Start keyboard listener in background
     listener_thread = threading.Thread(target=teleop_listener, daemon=True)

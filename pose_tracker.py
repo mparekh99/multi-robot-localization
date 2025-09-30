@@ -127,7 +127,7 @@ class PoseTracker:
             "cov_theta": self.kalman.P_last[2, 2],
         })
 
-        return frame
+        return x,y,theta
 
     def save_logs(self, filename="pose_log.csv"):
         if not self.logs:

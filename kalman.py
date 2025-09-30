@@ -84,7 +84,9 @@ class KalmanFilter:
 
         # CHATGPT Mahalanobis distance
         S_inv = np.linalg.inv(S)
-        self.mahalanobis_dist = y_k.T @ S_inv @ y_k
+        self.mahalanobis_dist = y_k.T @ S_inv @ y_k  # How far a point is from the expected mean. Take into account shape and scale of distribution
+        # Difference between predicted and measurement = y_k
+        # S is the uncertianty of y_k -- computes how far off I am 
 
         # Threshold can be tuned; for 3D, 95% confidence ~7.81 (chi-square)
         if self.mahalanobis_dist > 50:
