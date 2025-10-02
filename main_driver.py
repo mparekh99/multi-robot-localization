@@ -1,133 +1,40 @@
-import anki_vector 
-import cv2 
-import numpy as np
-from PIL import Image 
-import time
-from anki_vector.util import degrees
-from scipy.spatial.transform import Rotation as R
-import pickle
-import keyboard
-import threading
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from enum import Enum
-import matplotlib.pyplot as plt
-import math
-from utils import rotation_matrix_x, rotation_matrix_y, rotation_matrix_z
-from world import Marker_World
+import anki_vector
 from pose_tracker import PoseTracker
+from pose_manager import PoseManager
+import threading
+from live_visualizer import visualize_poses
+from localize import run_vector_localization
 
-
-# === Keyboard control state ===
-control_state = {
-    "left": False,
-    "right": False,
-    "forward": False,
-    "backward": False
-}
-
-# === Keyboard teleoperation ===
-def teleop_listener():
-    while True:
-        control_state["forward"] = keyboard.is_pressed("up")
-        control_state["backward"] = keyboard.is_pressed("down")
-        control_state["left"] = keyboard.is_pressed("left")
-        control_state["right"] = keyboard.is_pressed("right")
-        time.sleep(0.01)
-
-# PLOT 
-def plot_scene(ax, pose_tracker):
-    ax.clear()
-    ax.set_xlim(-600, 600)
-    ax.set_ylim(-600, 600)
-    ax.set_xlabel("X (mm)")
-    ax.set_ylabel("Y (mm)")
-    ax.set_title("Vector and Marker Positions")
-    ax.grid(True)
-
-    # Plot each marker
-    for marker_id in pose_tracker.world.marker_transforms:
-
-        marker = pose_tracker.world.marker_transforms[marker_id]
-        pos = marker['pos']
-        x = pos[0]
-        y = pos[1]
-        ax.plot(x, y, 'ro')
-        ax.text(x + 5, y + 5, f'Marker {marker_id}', color='red', fontsize=8)
-
-    # Plot the robot's position
-    x = pose_tracker.position[0]
-    y = pose_tracker.position[1]
-    ax.plot(x, y, 'bo')
-    ax.text(x + 5, y + 5, "Vector", color='blue')
-
-    # Calulate YAW
-    heading = pose_tracker.heading
-
-    # Draw direction arrow
-    length = 30
-    dx = length * math.cos(heading)
-    dy = length * math.sin(heading)
-    ax.arrow(x, y, dx, dy, head_width=10, head_length=10, fc='blue', ec='blue')
-
-def setup(robot_serial: str):
-    """Setup robot, plotting, threading."""
-    robot = anki_vector.Robot(robot_serial)
-    robot.connect()
-
-    # Camera + head settings
-    robot.behavior.set_head_angle(degrees(7.0))
-    robot.behavior.set_lift_height(0.0)
-    robot.camera.init_camera_feed()
-    # time.sleep(1.0)
-
-    # Start keyboard listener in background
-    listener_thread = threading.Thread(target=teleop_listener, daemon=True)
-    listener_thread.start()
-
-    # Setup plot
-    plt.ion()
-    fig, ax = plt.subplots()
-
-    return robot, fig, ax
-
+# Import your controller module
+import controller
 
 def main():
+    serials = ["00806b78", "00603f86"]
+    pose_manager = PoseManager()
 
-    pose_tracker = PoseTracker()
-    robot, fig, ax = setup("00806b78")
+    robots = {}
+    for serial in serials:
+        robots[serial] = anki_vector.Robot(serial)
+        robots[serial].connect()
+
+    # Start the teleop listener thread once
+    threading.Thread(target=controller.teleop_listener, daemon=True).start()
+
+    # Start localization threads
+    for serial in serials:
+        threading.Thread(target=run_vector_localization, args=(serial, pose_manager), daemon=True).start()
+
+    # Start control threads using your existing controller functions
+    threading.Thread(target=controller.control_robot_1, args=(robots["00806b78"],), daemon=True).start()
+    threading.Thread(target=controller.control_robot_2, args=(robots["00603f86"],), daemon=True).start()
 
     try:
-        while True:
-            frame_pil = robot.camera.latest_image.raw_image
-            frame = pose_tracker.update_pose(frame_pil, robot)
-            plot_scene(ax, pose_tracker)
-            plt.draw()
-            plt.pause(0.01)
-
-            cv2.imshow("Vector Camera View", frame)
-
-            if control_state["forward"]:
-                robot.motors.set_wheel_motors(100, 100)
-            elif control_state["backward"]:
-                robot.motors.set_wheel_motors(-100, -100)
-            elif control_state["left"]:
-                robot.motors.set_wheel_motors(-50, 50)
-            elif control_state["right"]:
-                robot.motors.set_wheel_motors(50, -50)
-            else:
-                robot.motors.set_wheel_motors(0, 0)
-
-
+        visualize_poses(pose_manager)
     except KeyboardInterrupt:
-        print("[INFO] KeyboardInterrupt detected. Exiting cleanly...")
-
-
+        print("EXITTING!!!")
     finally:
-        pose_tracker.save_logs()
-        robot.disconnect()
-        cv2.destroyAllWindows()
+        for robot in robots.values():
+            robot.disconnect()
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

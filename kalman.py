@@ -84,12 +84,12 @@ class KalmanFilter:
         # S is the uncertianty of y_k -- computes how far off I am 
 
         # Threshold can be tuned; for 3D, 95% confidence ~7.81 (chi-square)
-        if self.mahalanobis_dist > 60:
+        if self.mahalanobis_dist > 55:
             # Reject measurement as outlier, skip update
             # print(f"Measurement rejected: Mahalanobis dist = {self.mahalanobis_dist:.2f}")
             return self.x_last, self.y_last, self.theta_last
-        else: 
-            print("USING READING")
+        # else: 
+        #     print("USING READING")
 
         # Update state
         x_updated = x_est + K @ y_k
